@@ -27,14 +27,14 @@ const bool benchmark = false;
 
 const int length = 20;
 int numSegments = 20; // todo
-double lambda = 0.0005; // todo
+double lambda = 0.00005; // todo smooth
 
-void saveTumTxt(const Eigen::Matrix<double, length, 1>& times, const Eigen::MatrixXd& poses)
+void saveTumTxt(const std::string& file, const Eigen::Matrix<double, length, 1>& times, const Eigen::MatrixXd& poses)
 {
     EulerAnglesYawPitchRoll rpy;
 
     printf("\n..............Saving path................\n");
-    std::ofstream of("/tmp/spline_u.txt");
+    std::ofstream of(file);
     if (of.is_open())
     {
         of.setf(std::ios::fixed, std::ios::floatfield);
@@ -56,7 +56,7 @@ void saveTumTxt(const Eigen::Matrix<double, length, 1>& times, const Eigen::Matr
     }
 }
 
-void saveCurveTumTxt(const BSplinePose& spline, int interval = 100)
+void saveCurveTumTxt(const std::string& file, const BSplinePose& spline, int interval = 100)
 {
     printf("\n..............Saving Curve................\n");
 
@@ -66,7 +66,7 @@ void saveCurveTumTxt(const BSplinePose& spline, int interval = 100)
     printf("time begin end: %f --- %f\n", time_begin_end.first, time_begin_end.second);
     double time_interval = (time_begin_end.second - time_begin_end.first) / (double)interval;
     printf("time_interval: %f\n", time_interval);
-    std::ofstream of("/tmp/spline_curve.txt");
+    std::ofstream of(file);
     if (of.is_open())
     {
         of.setf(std::ios::fixed, std::ios::floatfield);
@@ -118,13 +118,13 @@ int main() {
 
             double l = 1.0;
             Eigen::MatrixXd poses = Eigen::MatrixXd::Random(6,length);
-//            for (int i = 0; i < length; ++i) {
-//                poses(0, i) = i * l;
-////                poses(1, i) = rand() % 1;
-////                poses(2, i) = rand() % 1;
-//                poses(1, i) *= 2.0;
-//                poses(1, i) *= 2.0;
-//            }
+            for (int i = 0; i < length; ++i) {
+                poses(0, i) = i * l;
+//                poses(1, i) = rand() % 1;
+//                poses(2, i) = rand() % 1;
+                poses(1, i) *= 2.0;
+                poses(1, i) *= 2.0;
+            }
 
 //            if(benchmark)
             {
@@ -155,16 +155,15 @@ int main() {
 //           std::cout << m2 << std::endl;
 
 //            sm::eigen::assertNear(m1, m2, 1e-8, SM_SOURCE_FILE_POS);
-            saveTumTxt(times, poses);
-            saveCurveTumTxt(bs_dense);
+            saveTumTxt("/tmp/control_points", times, poses);
+            saveCurveTumTxt("/tmp/curve_dense", bs_dense);
+            saveCurveTumTxt("/tmp/curve_sparse", bs_dense);
         }
     }
     catch(const std::exception &e) {
 //        FAIL() << e.what();
         printf("failure, exit.");
     }
-
-
 
 
     return 0;
