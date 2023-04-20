@@ -28,13 +28,16 @@ const bool benchmark = false;
 const int length = 20;
 int numSegments = 20; // todo
 double lambda = 0.00005; // todo smooth
+int order = 7;
+
 
 void saveTumTxt(const std::string& file, const Eigen::Matrix<double, length, 1>& times, const Eigen::MatrixXd& poses)
 {
     EulerAnglesYawPitchRoll rpy;
 
     printf("\n..............Saving path................\n");
-    std::ofstream of(file);
+    std::string file_name = file + "_pts" + std::to_string(length);
+    std::ofstream of(file_name);
     if (of.is_open())
     {
         of.setf(std::ios::fixed, std::ios::floatfield);
@@ -66,7 +69,10 @@ void saveCurveTumTxt(const std::string& file, const BSplinePose& spline, int int
     printf("time begin end: %f --- %f\n", time_begin_end.first, time_begin_end.second);
     double time_interval = (time_begin_end.second - time_begin_end.first) / (double)interval;
     printf("time_interval: %f\n", time_interval);
-    std::ofstream of(file);
+
+    std::string file_name = file + "_segments_" +  std::to_string(numSegments) +
+            "_order_" +  std::to_string(order) + "_lambda" +  std::to_string(lambda);
+    std::ofstream of(file_name);
     if (of.is_open())
     {
         of.setf(std::ios::fixed, std::ios::floatfield);
@@ -89,82 +95,88 @@ void saveCurveTumTxt(const std::string& file, const BSplinePose& spline, int int
         of.close();
     }
 }
+
 int main() {
     srand(time(nullptr));
-    try {
-        boost::shared_ptr<RotationalKinematics> rvs;
 
-        rvs.reset(new RotationVector());
+    // random positive times
+    Eigen::Matrix<double, length, 1> times = Eigen::VectorXd::Random(length) + Eigen::VectorXd::Ones(length);
+    // sorted
+    std::sort(&times.coeffRef(0), &times.coeffRef(0)+times.size());
 
+    times[length-1] = ceil(times[length-1]);
 
-        //  int order = 2;
-        for(int order = 7; order < 8; order++)
-        {
-            // Create a two segment spline.
-            BSplinePose bs_sparse(order, rvs);
-            BSplinePose bs_dense(order, rvs);
-
-            // random positive times
-            Eigen::Matrix<double, length, 1> times = Eigen::VectorXd::Random(length) + Eigen::VectorXd::Ones(length);
-            // sorted
-            std::sort(&times.coeffRef(0), &times.coeffRef(0)+times.size());
-
-            times[length-1] = ceil(times[length-1]);
-
-            //      times = times;
-
-            //  std::cout << "Times:" << std::endl;
-            //  std::cout << times << std::endl;
-
-            double l = 1.0;
-            Eigen::MatrixXd poses = Eigen::MatrixXd::Random(6,length);
-            for (int i = 0; i < length; ++i) {
-                poses(0, i) = i * l;
+    double l = 1.0;
+    Eigen::MatrixXd poses = Eigen::MatrixXd::Random(6,length);
+    for (int i = 0; i < length; ++i) {
+        poses(0, i) = i * l;
 //                poses(1, i) = rand() % 1;
 //                poses(2, i) = rand() % 1;
-                poses(1, i) *= 2.0;
-                poses(1, i) *= 2.0;
-            }
+        poses(1, i) *= 2.0;
+        poses(1, i) *= 2.0;
+    }
 
-//            if(benchmark)
-            {
-                {
-                    boost::progress_timer timer;
-                    std::cout << "Dense:" << std::endl;
-                    bs_dense.initPoseSpline3(times,poses,numSegments,lambda);
-                }
-                {
-                    boost::progress_timer timer;
-                    std::cout << "Sparse:" << std::endl;
-                    bs_sparse.initPoseSplineSparse(times,poses,numSegments,lambda);
-                }
-            }
+    saveTumTxt("/tmp/control_points", times, poses);
 
-            // diagonals
-            //      for (int i = 0; i < Asparse.rows(); i++)
-            //           std::cout << Asparse(i,i) << " : " << Adense(i,i) << std::endl;
+    boost::shared_ptr<RotationalKinematics> rvs;
+    rvs.reset(new RotationVector());
 
-
-
-            Eigen::MatrixXd m1 = bs_sparse.coefficients();
-            Eigen::MatrixXd m2 = bs_dense.coefficients();
-
-//           std::cout << "m1:" << std::endl;
-//           std::cout << m1 << std::endl;
-//           std::cout << "m2:" << std::endl;
-//           std::cout << m2 << std::endl;
-
-//            sm::eigen::assertNear(m1, m2, 1e-8, SM_SOURCE_FILE_POS);
-            saveTumTxt("/tmp/control_points", times, poses);
+    {
+        order = 3;
+        // Create a two segment spline.
+        BSplinePose bs_sparse(order, rvs);
+        BSplinePose bs_dense(order, rvs);
+        {
+            boost::progress_timer timer;
+            std::cout << "Dense:" << std::endl;
+            bs_dense.initPoseSpline3(times, poses, numSegments, lambda);
             saveCurveTumTxt("/tmp/curve_dense", bs_dense);
+        }
+        {
+            boost::progress_timer timer;
+            std::cout << "Sparse:" << std::endl;
+            bs_sparse.initPoseSplineSparse(times, poses, numSegments, lambda);
             saveCurveTumTxt("/tmp/curve_sparse", bs_dense);
         }
     }
-    catch(const std::exception &e) {
-//        FAIL() << e.what();
-        printf("failure, exit.");
+
+    {
+        order = 5;
+        // Create a two segment spline.
+        BSplinePose bs_sparse(order, rvs);
+        BSplinePose bs_dense(order, rvs);
+        {
+            boost::progress_timer timer;
+            std::cout << "Dense:" << std::endl;
+            bs_dense.initPoseSpline3(times, poses, numSegments, lambda);
+            saveCurveTumTxt("/tmp/curve_dense", bs_dense);
+        }
+        {
+            boost::progress_timer timer;
+            std::cout << "Sparse:" << std::endl;
+            bs_sparse.initPoseSplineSparse(times, poses, numSegments, lambda);
+            saveCurveTumTxt("/tmp/curve_sparse", bs_dense);
+        }
     }
 
+    {
+        order = 2;
+        // Create a two segment spline.
+        BSplinePose bs_sparse(order, rvs);
+        BSplinePose bs_dense(order, rvs);
+        {
+            boost::progress_timer timer;
+            std::cout << "Dense:" << std::endl;
+            bs_dense.initPoseSpline3(times, poses, numSegments, lambda);
+            saveCurveTumTxt("/tmp/curve_dense", bs_dense);
+        }
+        {
+            boost::progress_timer timer;
+            std::cout << "Sparse:" << std::endl;
+            bs_sparse.initPoseSplineSparse(times, poses, numSegments, lambda);
+            saveCurveTumTxt("/tmp/curve_sparse", bs_dense);
+        }
+    }
 
     return 0;
 }
